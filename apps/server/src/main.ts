@@ -4,6 +4,7 @@ import {
   CodexAgentWatcher,
   OpenCodeAgentWatcher,
   PiAgentWatcher,
+  HermesAgentWatcher,
   PluginLoader,
   SERVER_HOST,
   SERVER_PORT,
@@ -68,6 +69,7 @@ loader.registerWatcher(new ClaudeCodeAgentWatcher());
 loader.registerWatcher(new CodexAgentWatcher());
 loader.registerWatcher(new OpenCodeAgentWatcher());
 loader.registerWatcher(new PiAgentWatcher());
+loader.registerWatcher(new HermesAgentWatcher());
 
 const watchers = loader.getWatchers();
 if (watchers.length > 0) {

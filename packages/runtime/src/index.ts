@@ -26,6 +26,7 @@ export { ClaudeCodeAgentWatcher } from "./agents/watchers/claude-code";
 export { CodexAgentWatcher } from "./agents/watchers/codex";
 export { OpenCodeAgentWatcher } from "./agents/watchers/opencode";
 export { PiAgentWatcher } from "./agents/watchers/pi";
+export { HermesAgentWatcher } from "./agents/watchers/hermes";
 export { MuxRegistry } from "./mux/registry";
 export { detectMux } from "./mux/detect";
 export { PluginLoader } from "./plugins/loader";
