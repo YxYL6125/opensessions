@@ -1340,10 +1340,15 @@ export function startServer(mux: MuxProvider, extraProviders?: MuxProvider[], wa
         }
       }
 
-      // Hermes fallback: some runs surface as python/sh process wrappers, so process-tree
-      // matching can miss them. Keep a strict title/cmd fallback only for Hermes.
+      // Fallbacks for wrapped processes where process-tree matching can miss the agent.
+      // Keep them strict to avoid false positives.
       const paneTitle = pane.title.toLowerCase();
       const paneCmd = pane.cmd.toLowerCase();
+
+      if (!matchedAgents.has("claude-code") && (paneTitle.includes("claude code") || paneCmd === "claude" || paneCmd === "claude-code")) {
+        matchedAgents.add("claude-code");
+      }
+
       if (!matchedAgents.has("hermes") && (paneTitle.includes("hermes") || paneCmd.includes("hermes"))) {
         matchedAgents.add("hermes");
       }
