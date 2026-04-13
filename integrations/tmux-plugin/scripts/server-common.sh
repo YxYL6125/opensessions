@@ -9,7 +9,7 @@ BUN_PATH="${BUN_PATH:-$(command -v bun 2>/dev/null || echo "$HOME/.bun/bin/bun")
 SERVER_ENTRY="$PLUGIN_DIR/apps/server/src/main.ts"
 
 server_alive() {
-  curl -s -o /dev/null -m 0.2 "http://${HOST}:${PORT}/" 2>/dev/null
+  curl -s -o /dev/null -m 0.8 --connect-timeout 0.3 "http://${HOST}:${PORT}/" 2>/dev/null
 }
 
 ensure_server() {

@@ -907,7 +907,7 @@ export function startServer(mux: MuxProvider, extraProviders?: MuxProvider[], wa
       return;
     }
 
-    const spawnKey = `${p.name}:${windowId}`;
+    const spawnKey = `${p.name}:${curSession}:${windowId}`;
     if (pendingSidebarSpawns.has(spawnKey)) {
       log("ensure", "SKIP — spawn already in progress", { curSession, windowId, provider: p.name });
       return;
@@ -954,14 +954,14 @@ export function startServer(mux: MuxProvider, extraProviders?: MuxProvider[], wa
   let ensureSidebarPendingCtx: { session: string; windowId: string } | undefined;
 
   function debouncedEnsureSidebar(ctx?: { session: string; windowId: string }): void {
-   if (ctx) ensureSidebarPendingCtx = ctx;
-   if (ensureSidebarTimer) clearTimeout(ensureSidebarTimer);
-   ensureSidebarTimer = setTimeout(() => {
-     ensureSidebarTimer = null;
-     const nextCtx = ensureSidebarPendingCtx;
-     ensureSidebarPendingCtx = undefined;
-     ensureSidebarInWindow(undefined, nextCtx);
-   }, 150);
+    if (ctx) ensureSidebarPendingCtx = ctx;
+    if (ensureSidebarTimer) clearTimeout(ensureSidebarTimer);
+    ensureSidebarTimer = setTimeout(() => {
+      ensureSidebarTimer = null;
+      const nextCtx = ensureSidebarPendingCtx;
+      ensureSidebarPendingCtx = undefined;
+      ensureSidebarInWindow(undefined, nextCtx);
+    }, 150);
   }
 
   // Debounced width enforcement — collapses resize storms (monitor switch,
@@ -1643,6 +1643,7 @@ export function startServer(mux: MuxProvider, extraProviders?: MuxProvider[], wa
             suppressWidthReports();
             syncClientSessionsForTty(ctx.clientTty, ctx.session, ctx.windowId);
             handleFocus(ctx.session);
+            debouncedEnsureSidebar({ session: ctx.session, windowId: ctx.windowId });
           } else {
             // Legacy: body is just the session name
             const name = body.trim().replace(/^"+|"+$/g, "");
