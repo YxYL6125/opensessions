@@ -1053,6 +1053,7 @@ export function startServer(mux: MuxProvider, extraProviders?: MuxProvider[], wa
     "claude-code": ["claude"],
     codex: ["codex"],
     opencode: ["opencode"],
+    hermes: ["hermes"],
   };
 
   const PANE_HIGHLIGHT_BORDER = "fg=#fab387,bold";
