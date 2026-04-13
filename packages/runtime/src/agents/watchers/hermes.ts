@@ -115,23 +115,81 @@ function extractThreadName(messages: HermesMessage[]): string | undefined {
   return undefined;
 }
 
-function extractProjectDir(session: HermesSession): string | undefined {
+function parseEmbeddedJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function collectPathCandidates(value: unknown, out: Set<string>, depth = 0): void {
+  if (depth > 5 || value == null) return;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    // Direct absolute path candidate
+    if (trimmed.startsWith("/")) {
+      const cleaned = trimmed.replace(/\\n.*$/, "").replace(/[\",;)]$/, "");
+      if (cleaned.split("/").length >= 4) out.add(cleaned);
+    }
+
+    // Parse nested JSON strings often found in tool call arguments
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      const parsed = parseEmbeddedJson(trimmed);
+      if (parsed !== undefined) collectPathCandidates(parsed, out, depth + 1);
+    }
+
+    const pathPattern = /(\/(?:Users|home|workspace)\/[\w./-]+)/g;
+    const match = trimmed.match(pathPattern);
+    if (match) {
+      for (const raw of match) {
+        const cleaned = raw.replace(/\\n.*$/, "").replace(/[\",;)]$/, "");
+        if (cleaned.split("/").length >= 4) out.add(cleaned);
+      }
+    }
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectPathCandidates(item, out, depth + 1);
+    return;
+  }
+
+  if (typeof value === "object") {
+    const rec = value as Record<string, unknown>;
+    for (const [k, v] of Object.entries(rec)) {
+      if (k === "cwd" || k === "workdir" || k === "path" || k === "project_dir" || k === "projectDir") {
+        collectPathCandidates(v, out, depth + 1);
+      } else if (typeof v === "string" || typeof v === "object") {
+        collectPathCandidates(v, out, depth + 1);
+      }
+    }
+  }
+}
+
+function extractProjectDir(session: HermesSession, resolveSession?: (projectDir: string) => string | null): string | undefined {
   const direct = session.cwd ?? session.project_dir ?? session.projectDir;
   if (direct && typeof direct === "string") return direct;
 
+  const candidates = new Set<string>();
   const messages = session.messages ?? [];
-  const pathPattern = /(\/(?:Users|home|workspace)\/[\w./-]+)/g;
   for (const m of messages) {
+    collectPathCandidates(m.content, candidates);
     const text = normalizeMessageContent(m.content);
-    const match = text.match(pathPattern);
-    if (!match || match.length === 0) continue;
-    for (const raw of match) {
-      const cleaned = raw.replace(/\\n.*$/, "").replace(/[\",;)]$/, "");
-      if (cleaned.split("/").length >= 4) return cleaned;
+    collectPathCandidates(text, candidates);
+  }
+
+  if (candidates.size === 0) return undefined;
+
+  if (resolveSession) {
+    for (const candidate of candidates) {
+      if (resolveSession(candidate)) return candidate;
     }
   }
 
-  return undefined;
+  return [...candidates][0];
 }
 
 function deriveStatus(session: HermesSession): AgentStatus {
@@ -230,7 +288,7 @@ export class HermesAgentWatcher implements AgentWatcher {
 
     const status = deriveStatus(doc);
     const threadName = doc.title ?? extractThreadName(doc.messages ?? []);
-    const projectDir = extractProjectDir(doc);
+    const projectDir = extractProjectDir(doc, this.ctx.resolveSession.bind(this.ctx));
 
     const now = Date.now();
     const next: SessionState = {

@@ -119,4 +119,28 @@ describe("HermesAgentWatcher", () => {
     expect(post.length).toBeGreaterThanOrEqual(1);
     expect(post[post.length - 1]!.status).toBe("done");
   });
+
+  test("extracts workdir from nested tool-call JSON arguments", async () => {
+    writeFileSync(sessionFile, JSON.stringify({
+      session_id: "20260413_143121_0c8f8a",
+      title: "Hermes Feature",
+      messages: [
+        {
+          role: "assistant",
+          content: {
+            arguments: "{\"command\":\"pwd\",\"workdir\":\"/Users/bytedance/workspace/code/fe/cloud-phone-dashboard\"}",
+          },
+          finish_reason: "tool_calls",
+        },
+      ],
+    }));
+
+    watcher.start(ctx);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    const last = events[events.length - 1]!;
+    expect(last.session).toBe("cloud-phone-dashboard");
+    expect(last.status).toBe("tool-running");
+  });
 });
