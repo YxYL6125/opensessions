@@ -1332,16 +1332,31 @@ export function startServer(mux: MuxProvider, extraProviders?: MuxProvider[], wa
     const tree = buildProcessTree();
 
     for (const pane of nonSidebar) {
-      for (const [agentName, patterns] of Object.entries(AGENT_TITLE_PATTERNS)) {
-        // Only use process tree matching — title matching produces false positives
-        // (e.g. an Amp thread named "Detect Claude session names" matches "claude")
-        if (!matchProcessTreeFast(pane.pid, patterns, tree)) continue;
+      const matchedAgents = new Set<string>();
 
-        let sessionAgents = result.get(pane.session);
-        if (!sessionAgents) {
-          sessionAgents = [];
-          result.set(pane.session, sessionAgents);
+      for (const [agentName, patterns] of Object.entries(AGENT_TITLE_PATTERNS)) {
+        if (matchProcessTreeFast(pane.pid, patterns, tree)) {
+          matchedAgents.add(agentName);
         }
+      }
+
+      // Hermes fallback: some runs surface as python/sh process wrappers, so process-tree
+      // matching can miss them. Keep a strict title/cmd fallback only for Hermes.
+      const paneTitle = pane.title.toLowerCase();
+      const paneCmd = pane.cmd.toLowerCase();
+      if (!matchedAgents.has("hermes") && (paneTitle.includes("hermes") || paneCmd.includes("hermes"))) {
+        matchedAgents.add("hermes");
+      }
+
+      if (matchedAgents.size === 0) continue;
+
+      let sessionAgents = result.get(pane.session);
+      if (!sessionAgents) {
+        sessionAgents = [];
+        result.set(pane.session, sessionAgents);
+      }
+
+      for (const agentName of matchedAgents) {
         sessionAgents.push({ agent: agentName, paneId: pane.id });
       }
     }
